@@ -1,0 +1,190 @@
+{
+  "name": "텔레그램 날씨 알림",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 7
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        -560,
+        0
+      ],
+      "id": "63f52546-5306-4cf1-b35b-1234cdd20668",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "url": "https://api.openweathermap.org/data/2.5/weather",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "lat",
+              "value": "37.6176"
+            },
+            {
+              "name": "lon",
+              "value": "126.9227"
+            },
+            {
+              "name": "appid",
+              "value": "e8afcd7394ceae1a9084ba0a5f4308c5"
+            },
+            {
+              "name": "units",
+              "value": "metric"
+            },
+            {
+              "name": "lang",
+              "value": "kr"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        -352,
+        0
+      ],
+      "id": "0eaebada-ed64-4522-9ab5-fc441d9ac363",
+      "name": "HTTP Request"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "3636f301-9a51-42d6-b867-77e4839df9e2",
+              "name": "name",
+              "value": "={{ $json.name }}",
+              "type": "string"
+            },
+            {
+              "id": "a84f243b-135b-4d6c-85bd-67b6e262eb3f",
+              "name": "main.temp",
+              "value": "={{ $json.main.temp }}",
+              "type": "number"
+            },
+            {
+              "id": "c0d3b04d-138f-4956-a4b6-1597059fbe4b",
+              "name": "main.feels_like",
+              "value": "={{ $json.main.feels_like }}",
+              "type": "number"
+            },
+            {
+              "id": "8e9f751e-eaab-40bb-ad93-ce3967cd8e2c",
+              "name": "main.humidity",
+              "value": "={{ $json.main.humidity }}",
+              "type": "number"
+            },
+            {
+              "id": "5ce027d2-5036-4baa-b2a8-7b52bd984fc3",
+              "name": "weather[0].description",
+              "value": "={{ $json.weather[0].description }}",
+              "type": "string"
+            },
+            {
+              "id": "5b4f588d-dcd0-4780-8213-fcc1b8a226c2",
+              "name": "wind.speed",
+              "value": "={{ $json.wind.speed }}",
+              "type": "number"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -144,
+        0
+      ],
+      "id": "e7148aa8-4434-478c-998a-5cc4a4dc6e3e",
+      "name": "Edit Fields"
+    },
+    {
+      "parameters": {
+        "chatId": "6934610426",
+        "text": "={{ \"☀️ 오늘의 날씨 브리핑\\n\\n\" +\n   \"📍 \" +$json.name + \"\\n\" +\n   \"🌡️ 현재: \" + $json.main.temp+ \"\\n\" +\n   \"🤔 체감: \" + $json.main.feels_like + \"\\n\" +\n   \"💧 습도: \" + $json.main.humidity + \"\\n\" +\n   \"🌤️ 상태: \" + $json.weather[0].description + \"\\n\" +\n   \"💨 풍속: \" + $json.wind.speed }}",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        64,
+        0
+      ],
+      "id": "823760aa-2d7c-4a4d-badb-0e8a3cc2e9c2",
+      "name": "Send a text message",
+      "webhookId": "f73a415a-5d80-466d-9822-d370c10ddc1d",
+      "credentials": {
+        "telegramApi": {
+          "id": "RZUs7OcZESJ1ViqD",
+          "name": "Telegram account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields": {
+      "main": [
+        [
+          {
+            "node": "Send a text message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false,
+    "timeSavedMode": "fixed",
+    "timezone": "Asia/Seoul",
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "versionId": "b0e3b5d3-d938-40a1-b532-919af7e57030",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "ee47474067e98b2c6e6dc3fa8b47a61d99afb0655ded6fd3e34fb73643976e2b"
+  },
+  "id": "9yRiBMFJNAH6dMpH",
+  "tags": []
+}

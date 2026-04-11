@@ -1,0 +1,363 @@
+{
+  "name": "Airtable 고객 DB 자동 관리",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "customer-inquiry",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -896,
+        0
+      ],
+      "id": "c8cab281-495c-4cc4-a48d-681aa3c6a992",
+      "name": "Webhook",
+      "webhookId": "723f2a8d-5b60-421b-83ca-f4fda2a2088f"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "d2644ccf-12cf-4874-997c-95dce30dddd2",
+              "name": "이름",
+              "value": "={{ $json.body.name }}",
+              "type": "string"
+            },
+            {
+              "id": "d05c010c-3f49-453f-9031-62e5a3cacdfb",
+              "name": "이메일",
+              "value": "={{ $json.body.email }}",
+              "type": "string"
+            },
+            {
+              "id": "002858b5-28a3-4f6f-bcf8-f85b7916f612",
+              "name": "문의유형",
+              "value": "={{ $json.body.type }}",
+              "type": "string"
+            },
+            {
+              "id": "4d1dffb3-b7c8-4205-90b3-79261dbd2768",
+              "name": "문의내용",
+              "value": "={{ $json.body.message }}",
+              "type": "string"
+            },
+            {
+              "id": "742fce3a-0e54-498d-aac5-2becbab71d81",
+              "name": "접수시각",
+              "value": "={{ $now.setZone(\"Asia/Seoul\").toFormat(\"yyyy-MM-dd HH:mm\") }}`",
+              "type": "string"
+            },
+            {
+              "id": "4a5ed55b-154a-414b-a87b-48f7a22c6d5c",
+              "name": "처리상태",
+              "value": "접수",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -704,
+        0
+      ],
+      "id": "0186f354-93a9-4b25-90b9-546608c40d98",
+      "name": "Edit Fields"
+    },
+    {
+      "parameters": {
+        "operation": "create",
+        "base": {
+          "__rl": true,
+          "value": "appH8thWOWLolJr5w",
+          "mode": "list",
+          "cachedResultName": "ArumDri 고객관리",
+          "cachedResultUrl": "https://airtable.com/appH8thWOWLolJr5w"
+        },
+        "table": {
+          "__rl": true,
+          "value": "tblqyqbfLUCw9sZeD",
+          "mode": "list",
+          "cachedResultName": "문의접수",
+          "cachedResultUrl": "https://airtable.com/appH8thWOWLolJr5w/tblqyqbfLUCw9sZeD"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "이름": "={{ $json['이름'] }}",
+            "이메일": "={{ $json['이메일'] }}",
+            "문의유형": "={{ $json['문의유형'] }}",
+            "문의내용": "={{ $json['문의내용'] }}",
+            "접수시각": "={{ $json['접수시각'] }}",
+            "처리상태": "={{ $json['처리상태'] }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "이름",
+              "displayName": "이름",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "이메일",
+              "displayName": "이메일",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "문의유형",
+              "displayName": "문의유형",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "options",
+              "options": [
+                {
+                  "name": "일반문의",
+                  "value": "일반문의"
+                },
+                {
+                  "name": "긴급",
+                  "value": "긴급"
+                }
+              ],
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "문의내용",
+              "displayName": "문의내용",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "접수시각",
+              "displayName": "접수시각",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "처리상태",
+              "displayName": "처리상태",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "options",
+              "options": [
+                {
+                  "name": "접수",
+                  "value": "접수"
+                },
+                {
+                  "name": "처리중",
+                  "value": "처리중"
+                },
+                {
+                  "name": "완료",
+                  "value": "완료"
+                }
+              ],
+              "readOnly": false,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.1,
+      "position": [
+        -496,
+        0
+      ],
+      "id": "8a2be6f1-b6b6-425f-8bd3-56ee4dadcff0",
+      "name": "Create a record",
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "zmygdz3GWdmH71gj",
+          "name": "Airtable Personal Access Token account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "3ab82ba4-ae84-49e4-ac70-76559276e890",
+              "leftValue": "={{ $json.fields['문의유형'] }}",
+              "rightValue": "긴급",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -288,
+        0
+      ],
+      "id": "532fed80-553c-41db-8675-d9566f351100",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "chatId": "6934610426",
+        "text": "={{ \"🚨 긴급 문의 접수!\\n\\n\" +\n   \"👤 \" + $json.fields['이름'] + \"\\n\" +\n   \"📧 \" + $json.fields['이메일'] + \"\\n\" +\n   \"⏰ \" + $json.fields['접수시각'] + \"\\n\\n\" +\n   \"📝 \" + $json.fields['문의내용'] + \"\\n\\n\" +\n   \"⚡ 즉시 확인이 필요합니다.\" }}",
+        "additionalFields": {
+          "parse_mode": "HTML"
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        -96,
+        -160
+      ],
+      "id": "2d7577e2-a7b2-4089-92c0-54a6ecacfd24",
+      "name": "Send a text message",
+      "webhookId": "230c89ae-2438-49ad-950e-fc4e157264b5",
+      "credentials": {
+        "telegramApi": {
+          "id": "RZUs7OcZESJ1ViqD",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "fromEmail": "didulos72@gmail.com",
+        "toEmail": "={{ $json.fields['이메일'] }}",
+        "subject": "={{ $json.fields['이름'] + \"님, 문의가 접수되었습니다\" }}`",
+        "html": "={{ \n\"<div style='font-family: Arial, sans-serif; max-width: 600px;'>\" +\n\"<h2 style='color: #2563eb;'>문의 접수 확인</h2>\" +\n\"<p>\" + $json.fields['이름'] + \"님, 안녕하세요.</p>\" +\n\"<p>아래 내용으로 문의가 접수되었습니다.</p>\" +\n\"<div style='background: #f1f5f9; padding: 16px; border-radius: 8px; margin: 16px 0;'>\" +\n\"<p><strong>문의 유형:</strong> \" + $json.fields['문의유형'] + \"</p>\" +\n\"<p><strong>문의 내용:</strong></p>\" +\n\"<p>\" + $json.fields['문의내용'] + \"</p>\" +\n\"</div>\" +\n\"<p>영업일 1~2일 이내 답변 드리겠습니다.</p>\" +\n\"<hr style='border: none; border-top: 1px solid #e2e8f0;'>\" +\n\"<p style='color: #94a3b8; font-size: 12px;'>ArumDri AI Automation</p>\" +\n\"</div>\"\n}}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [
+        -96,
+        128
+      ],
+      "id": "f45ffad4-d7ac-45dd-a9e5-4e7b5e84da74",
+      "name": "Send an Email",
+      "webhookId": "90332cd1-0754-4188-a1e9-d5e7bf8c1679",
+      "credentials": {
+        "smtp": {
+          "id": "aZWCkRVDOpZJTXJu",
+          "name": "SMTP account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields": {
+      "main": [
+        [
+          {
+            "node": "Create a record",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create a record": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Send a text message",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send an Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "9461932f-7dcf-4a04-a031-9cc3f14922e3",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "ee47474067e98b2c6e6dc3fa8b47a61d99afb0655ded6fd3e34fb73643976e2b"
+  },
+  "id": "WIgRY2qdznWdWGQT",
+  "tags": []
+}

@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ArumDri CS봇 — 위젯 미리보기</title>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+  <style>
+    /* ── 기본 리셋 ── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Noto Sans KR', -apple-system, 'Apple SD Gothic Neo', sans-serif;
+      background: #f0f2f0;
+      color: #1a1a1a;
+    }
+
+    /* ── 데모 페이지 레이아웃 ── */
+    .demo-wrap {
+      max-width: 760px;
+      margin: 60px auto;
+      padding: 40px;
+      background: white;
+      border-radius: 16px;
+      box-shadow: 0 2px 16px rgba(0,0,0,0.08);
+    }
+    .demo-wrap h1  { color: #2D5016; font-size: 1.5rem; margin-bottom: 12px; }
+    .demo-wrap p   { color: #555; line-height: 1.8; font-size: 0.95rem; }
+    .demo-wrap .tip {
+      margin-top: 20px;
+      padding: 14px 16px;
+      background: #f6faf0;
+      border-left: 3px solid #2D5016;
+      border-radius: 4px;
+      font-size: 0.85rem;
+      color: #444;
+    }
+
+    /* ════════════════════════════════════════
+       CS봇 위젯 — 아래부터 실제 위젯 CSS
+       스마트스토어 임베드 시 이 부분만 사용
+    ════════════════════════════════════════ */
+
+    /* 위젯 컨테이너 */
+    #csbot-widget {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      z-index: 9999;
+      font-family: 'Noto Sans KR', -apple-system, 'Apple SD Gothic Neo', sans-serif;
+    }
+
+    /* ── 플로팅 토글 버튼 ── */
+    #csbot-toggle-btn {
+      position: relative;
+      width: 58px;
+      height: 58px;
+      border-radius: 50%;
+      background: #2D5016;
+      border: none;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 4px 18px rgba(45,80,22,0.40);
+      transition: background 0.25s, transform 0.2s;
+      outline: none;
+    }
+    #csbot-toggle-btn:hover  { background: #3a6820; transform: scale(1.06); }
+    #csbot-toggle-btn:active { transform: scale(0.96); }
+    #csbot-toggle-btn svg    { width: 28px; height: 28px; fill: white; }
+    /* 아이콘 전환 */
+    #csbot-toggle-btn .icon-close  { display: none; }
+    #csbot-toggle-btn.open .icon-chat  { display: none; }
+    #csbot-toggle-btn.open .icon-close { display: block; }
+
+    /* ── 미읽음 배지 ── */
+    #csbot-badge {
+      position: absolute;
+      top: -4px;
+      right: -4px;
+      width: 20px;
+      height: 20px;
+      background: #E8781A;
+      color: white;
+      font-size: 0.7rem;
+      font-weight: 700;
+      border-radius: 50%;
+      border: 2px solid white;
+      display: none;
+      align-items: center;
+      justify-content: center;
+    }
+    #csbot-badge.show { display: flex; }
+
+    /* ── 채팅 창 ── */
+    #csbot-window {
+      position: absolute;
+      bottom: 70px;
+      right: 0;
+      width: 360px;
+      height: 530px;
+      background: white;
+      border-radius: 18px;
+      box-shadow: 0 8px 40px rgba(0,0,0,0.18);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      transform-origin: bottom right;
+      transform: scale(0.85) translateY(12px);
+      opacity: 0;
+      pointer-events: none;
+      transition: transform 0.28s cubic-bezier(0.34,1.56,0.64,1),
+                  opacity  0.22s ease;
+    }
+    #csbot-window.open {
+      transform: scale(1) translateY(0);
+      opacity: 1;
+      pointer-events: all;
+    }
+
+    /* ── 헤더 ── */
+    #csbot-header {
+      background: #2D5016;
+      padding: 16px 20px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-shrink: 0;
+    }
+    .csbot-avatar {
+      width: 38px;
+      height: 38px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.18);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    .csbot-avatar svg { width: 20px; height: 20px; fill: white; }
+    .csbot-header-text h3 {
+      color: white;
+      font-size: 0.95rem;
+      font-weight: 700;
+    }
+    .csbot-header-text p {
+      color: rgba(255,255,255,0.72);
+      font-size: 0.73rem;
+      margin-top: 2px;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .csbot-dot {
+      width: 7px;
+      height: 7px;
+      background: #7ED321;
+      border-radius: 50%;
+      animation: blink 2.2s infinite;
+    }
+    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.35} }
+
+    /* ── 메시지 영역 ── */
+    #csbot-messages {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      background: #f9faf7;
+      scroll-behavior: smooth;
+    }
+    #csbot-messages::-webkit-scrollbar      { width: 4px; }
+    #csbot-messages::-webkit-scrollbar-thumb{ background: #d4d4d4; border-radius: 4px; }
+
+    /* ── 메시지 말풍선 ── */
+    .csbot-msg        { display: flex; flex-direction: column; max-width: 82%; }
+    .csbot-msg.bot    { align-self: flex-start; }
+    .csbot-msg.user   { align-self: flex-end; }
+
+    .csbot-bubble {
+      padding: 10px 14px;
+      font-size: 0.875rem;
+      line-height: 1.65;
+      word-break: keep-all;
+      white-space: pre-wrap;
+    }
+    .csbot-msg.bot  .csbot-bubble {
+      background: #E8F5E0;
+      color: #1a1a1a;
+      border-radius: 14px 14px 14px 3px;
+    }
+    .csbot-msg.user .csbot-bubble {
+      background: #EDEDEC;
+      color: #1a1a1a;
+      border-radius: 14px 14px 3px 14px;
+    }
+
+    .csbot-time {
+      font-size: 0.68rem;
+      color: #b0b0b0;
+      margin-top: 4px;
+    }
+    .csbot-msg.bot  .csbot-time { margin-left: 3px; }
+    .csbot-msg.user .csbot-time { text-align: right; margin-right: 3px; }
+
+    /* ── 타이핑 인디케이터 ── */
+    #csbot-typing {
+      align-self: flex-start;
+      display: none;
+    }
+    #csbot-typing.show { display: block; }
+    .csbot-typing-wrap {
+      background: #E8F5E0;
+      border-radius: 14px 14px 14px 3px;
+      padding: 11px 16px;
+      display: flex;
+      gap: 5px;
+      align-items: center;
+    }
+    .csbot-typing-dot {
+      width: 7px;
+      height: 7px;
+      background: #2D5016;
+      border-radius: 50%;
+      opacity: 0.35;
+      animation: typingDot 1.5s infinite;
+    }
+    .csbot-typing-dot:nth-child(2){ animation-delay: 0.18s; }
+    .csbot-typing-dot:nth-child(3){ animation-delay: 0.36s; }
+    @keyframes typingDot {
+      0%,60%,100%{ opacity:0.35; transform:translateY(0); }
+      30%        { opacity:1;    transform:translateY(-5px); }
+    }
+
+    /* ── 입력 영역 ── */
+    #csbot-input-area {
+      padding: 10px 12px;
+      border-top: 1px solid #ececec;
+      display: flex;
+      align-items: flex-end;
+      gap: 8px;
+      background: white;
+      flex-shrink: 0;
+    }
+    #csbot-input {
+      flex: 1;
+      border: 1.5px solid #e0e0e0;
+      border-radius: 22px;
+      padding: 10px 16px;
+      font-size: 0.875rem;
+      font-family: inherit;
+      outline: none;
+      resize: none;
+      line-height: 1.5;
+      max-height: 100px;
+      overflow-y: auto;
+      transition: border-color 0.2s;
+    }
+    #csbot-input:focus          { border-color: #2D5016; }
+    #csbot-input::placeholder   { color: #bbb; }
+    #csbot-input:disabled       { background: #f8f8f8; }
+
+    #csbot-send-btn {
+      width: 42px;
+      height: 42px;
+      border-radius: 50%;
+      background: #E8781A;
+      border: none;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      transition: background 0.2s, transform 0.12s;
+      outline: none;
+    }
+    #csbot-send-btn:hover        { background: #d06b14; }
+    #csbot-send-btn:active       { transform: scale(0.92); }
+    #csbot-send-btn:disabled     { background: #ddd; cursor: not-allowed; transform: none; }
+    #csbot-send-btn svg          { width: 18px; height: 18px; fill: white; }
+
+    /* ── 모바일: 풀스크린 ── */
+    @media (max-width: 480px) {
+      #csbot-widget {
+        bottom: 0; right: 0; left: 0;
+      }
+      #csbot-toggle-btn {
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+      }
+      #csbot-window {
+        position: fixed;
+        bottom: 0; right: 0; left: 0;
+        width: 100%;
+        height: 100dvh;
+        border-radius: 0;
+        transform: translateY(100%);
+        opacity: 1;
+      }
+      #csbot-window.open {
+        transform: translateY(0);
+      }
+    }
+  </style>
+</head>
+<body>
+
+<!-- 데모 페이지 본문 -->
+<div class="demo-wrap">
+  <h1>ArumDri CS봇 — 위젯 미리보기</h1>
+  <p>우측 하단의 채팅 버튼을 클릭하면 CS봇 위젯을 직접 체험할 수 있습니다.</p>
+  <div class="tip">
+    📌 <strong>임베드 방법:</strong> <code>src/widget/embed-snippet.html</code> 의 코드를 스마트스토어
+    &ldquo;하단 스크립트&rdquo; 입력란에 붙여넣으세요.<br>
+    아래 설정값 (<code>WEBHOOK_URL</code>, <code>STORE_ID</code>, <code>STORE_NAME</code>)을 실제 값으로 교체해야 합니다.
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════
+     CS봇 위젯 마크업 — 임베드 시 이 블록 사용
+════════════════════════════════════════ -->
+<div id="csbot-widget">
+  <div id="csbot-badge" aria-hidden="true">1</div>
+
+  <button id="csbot-toggle-btn" aria-label="고객센터 채팅 열기/닫기" aria-expanded="false">
+    <!-- 열기 아이콘 -->
+    <svg class="icon-chat" viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H6l-2 2V4h16v12z"/>
+    </svg>
+    <!-- 닫기 아이콘 -->
+    <svg class="icon-close" viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
+    </svg>
+  </button>
+
+  <div id="csbot-window" role="dialog" aria-label="고객센터 채팅창" aria-hidden="true">
+    <!-- 헤더 -->
+    <div id="csbot-header">
+      <div class="csbot-avatar" aria-hidden="true">
+        <svg viewBox="0 0 24 24">
+          <path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-2 12H6v-2h12v2zm0-3H6V9h12v2zm0-3H6V6h12v2z"/>
+        </svg>
+      </div>
+      <div class="csbot-header-text">
+        <h3 id="csbot-store-name">고객센터</h3>
+        <p><span class="csbot-dot"></span>온라인 · 빠른 답변</p>
+      </div>
+    </div>
+
+    <!-- 메시지 목록 -->
+    <div id="csbot-messages" role="log" aria-live="polite" aria-label="채팅 메시지">
+      <!-- 타이핑 인디케이터 (항상 마지막에 위치) -->
+      <div id="csbot-typing" aria-label="봇이 입력 중" aria-hidden="true">
+        <div class="csbot-typing-wrap">
+          <span class="csbot-typing-dot"></span>
+          <span class="csbot-typing-dot"></span>
+          <span class="csbot-typing-dot"></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- 입력 영역 -->
+    <div id="csbot-input-area">
+      <textarea
+        id="csbot-input"
+        placeholder="문의 내용을 입력하세요..."
+        rows="1"
+        aria-label="메시지 입력창"
+        autocomplete="off"
+        spellcheck="false"
+      ></textarea>
+      <button id="csbot-send-btn" aria-label="전송">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
+        </svg>
+      </button>
+    </div>
+  </div>
+</div>
+
+<script>
+/**
+ * ArumDri CS봇 웹 채팅 위젯 v1.0
+ *
+ * ── 설정값 ──────────────────────────────
+ * WEBHOOK_URL    : n8n 웹 위젯 웹훅 URL
+ * STORE_ID       : Airtable Stores 테이블의 StoreID
+ * STORE_NAME     : 채팅창 헤더에 표시할 스토어명
+ * WELCOME_MESSAGE: 위젯 최초 열 때 봇이 보내는 인사 메시지
+ */
+(function () {
+  'use strict';
+
+  /* ── 설정 ── */
+  const CONFIG = {
+    WEBHOOK_URL:     'http://localhost:5678/webhook/widget',
+    STORE_ID:        '1',
+    STORE_NAME:      '샘플 스토어',
+    WELCOME_MESSAGE: '안녕하세요! 😊 무엇이든 편하게 문의해 주세요.'
+  };
+
+  /* ── 상태 ── */
+  let isOpen      = false;
+  let isLoading   = false;
+  let hasWelcome  = false;
+  let unread      = 0;
+
+  /* sessionId — 새로고침 후에도 대화 맥락 유지 */
+  let sessionId = localStorage.getItem('csbot_session_id');
+  if (!sessionId) {
+    sessionId = 'widget_' + Math.random().toString(36).slice(2, 9) + '_' + Date.now();
+    localStorage.setItem('csbot_session_id', sessionId);
+  }
+
+  /* ── DOM ── */
+  const $win      = document.getElementById('csbot-window');
+  const $btn      = document.getElementById('csbot-toggle-btn');
+  const $msgs     = document.getElementById('csbot-messages');
+  const $typing   = document.getElementById('csbot-typing');
+  const $input    = document.getElementById('csbot-input');
+  const $send     = document.getElementById('csbot-send-btn');
+  const $badge    = document.getElementById('csbot-badge');
+  const $nameEl   = document.getElementById('csbot-store-name');
+
+  /* 스토어명 적용 */
+  $nameEl.textContent = CONFIG.STORE_NAME + ' 고객센터';
+
+  /* ── 유틸 ── */
+  function nowTime() {
+    return new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' });
+  }
+
+  function addMessage(text, role) {
+    const $msg    = document.createElement('div');
+    $msg.className = 'csbot-msg ' + role;
+
+    const $bubble = document.createElement('div');
+    $bubble.className = 'csbot-bubble';
+    $bubble.textContent = text;
+
+    const $time   = document.createElement('div');
+    $time.className = 'csbot-time';
+    $time.textContent = nowTime();
+
+    $msg.appendChild($bubble);
+    $msg.appendChild($time);
+
+    /* 타이핑 인디케이터 앞에 삽입 */
+    $msgs.insertBefore($msg, $typing);
+    scrollBottom();
+  }
+
+  function scrollBottom() {
+    $msgs.scrollTop = $msgs.scrollHeight;
+  }
+
+  function setLoading(v) {
+    isLoading = v;
+    $send.disabled  = v;
+    $input.disabled = v;
+    $typing.setAttribute('aria-hidden', v ? 'false' : 'true');
+    v ? $typing.classList.add('show') : $typing.classList.remove('show');
+    if (v) scrollBottom();
+  }
+
+  function autoResize() {
+    $input.style.height = 'auto';
+    $input.style.height = Math.min($input.scrollHeight, 100) + 'px';
+  }
+
+  /* ── 메시지 전송 ── */
+  async function sendMessage() {
+    const text = $input.value.trim();
+    if (!text || isLoading) return;
+
+    $input.value = '';
+    autoResize();
+    addMessage(text, 'user');
+    setLoading(true);
+
+    try {
+      const resp = await fetch(CONFIG.WEBHOOK_URL, {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({
+          message:    text,
+          session_id: sessionId,
+          store_id:   CONFIG.STORE_ID,
+          channel:    'web_widget'
+        })
+      });
+
+      if (!resp.ok) throw new Error('HTTP ' + resp.status);
+      const data  = await resp.json();
+      const reply = data.message || data.response || '응답을 받지 못했습니다.';
+
+      setLoading(false);
+      addMessage(reply, 'bot');
+
+    } catch (err) {
+      setLoading(false);
+      // TypeError: Failed to fetch → CORS 또는 네트워크 오류
+      const isCors = err instanceof TypeError && err.message.includes('fetch');
+      if (isCors) {
+        console.error('[CSBot] CORS 오류 가능성. n8n에 N8N_CORS_ORIGIN 환경변수를 설정했는지 확인하세요.', err);
+      } else {
+        console.warn('[CSBot]', err);
+      }
+      addMessage('잠시 후 다시 시도해 주세요. 불편을 드려 죄송합니다.', 'bot');
+    }
+  }
+
+  /* ── 토글 ── */
+  $btn.addEventListener('click', function () {
+    isOpen = !isOpen;
+    $win.classList.toggle('open', isOpen);
+    $btn.classList.toggle('open', isOpen);
+    $btn.setAttribute('aria-expanded', isOpen);
+    $win.setAttribute('aria-hidden', !isOpen);
+
+    if (isOpen) {
+      /* 미읽음 초기화 */
+      unread = 0;
+      $badge.classList.remove('show');
+
+      /* 환영 메시지 (최초 1회) */
+      if (!hasWelcome) {
+        hasWelcome = true;
+        setTimeout(function () {
+          addMessage(CONFIG.WELCOME_MESSAGE, 'bot');
+        }, 380);
+      }
+
+      setTimeout(function () { $input.focus(); }, 300);
+    }
+  });
+
+  /* ── 전송 이벤트 ── */
+  $send.addEventListener('click', sendMessage);
+
+  $input.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      sendMessage();
+    }
+  });
+
+  $input.addEventListener('input', autoResize);
+
+  /* ── 초기화 완료 ── */
+  console.info('[CSBot] 위젯 초기화 완료. sessionId:', sessionId);
+
+}());
+</script>
+
+</body>
+</html>

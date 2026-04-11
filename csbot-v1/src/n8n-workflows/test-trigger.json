@@ -1,0 +1,155 @@
+{
+  "name": "CSBot Test Trigger",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "b2c3d4e5-0001-4000-8000-000000000001",
+      "name": "Run Tests",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        250,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// PRD 10개 시나리오 + 폴백 1건 = 총 11건 테스트\nconst testCases = [\n  {\n    id: 'S01',\n    category: '배송조회',\n    message: '제 주문 언제 와요?',\n    expect_keywords: ['배송', '조회', '운송장']\n  },\n  {\n    id: 'S02',\n    category: '배송소요일',\n    message: '주문하면 며칠 만에 와요?',\n    expect_keywords: ['출고', '영업일', '수령']\n  },\n  {\n    id: 'S03',\n    category: '교환',\n    message: '사이즈를 잘못 주문했어요. 교환 가능한가요?',\n    expect_keywords: ['교환', '일 이내']\n  },\n  {\n    id: 'S04',\n    category: '반품환불',\n    message: '마음에 안 들어서 반품하고 싶어요',\n    expect_keywords: ['반품', '환불', '배송비']\n  },\n  {\n    id: 'S05',\n    category: '주문취소',\n    message: '방금 주문했는데 취소할 수 있나요?',\n    expect_keywords: ['취소', '주문']\n  },\n  {\n    id: 'S06',\n    category: '재입고',\n    message: '품절인데 언제 다시 들어오나요?',\n    expect_keywords: ['재입고', '품절', '알림']\n  },\n  {\n    id: 'S07',\n    category: '영업시간',\n    message: '고객센터 몇 시까지 운영해요?',\n    expect_keywords: ['운영', '시간']\n  },\n  {\n    id: 'S08',\n    category: '결제',\n    message: '무통장 입금 계좌 알려주세요',\n    expect_keywords: ['결제', '계좌', '카드']\n  },\n  {\n    id: 'S09',\n    category: '상품정보',\n    message: '이 제품 소재가 뭔가요?',\n    expect_keywords: ['상품', '상세', '페이지']\n  },\n  {\n    id: 'S10',\n    category: '배송지역',\n    message: '제주도 배송 되나요?',\n    expect_keywords: ['제주', '배송']\n  },\n  {\n    id: 'F01',\n    category: '폴백',\n    message: '사장님 전화번호 알려주세요',\n    expect_keywords: ['담당자', '전달']\n  }\n];\n\nreturn testCases.map(function(tc, idx) {\n  return {\n    json: {\n      test_id: tc.id,\n      test_category: tc.category,\n      test_index: idx + 1,\n      test_total: testCases.length,\n      expect_keywords: tc.expect_keywords,\n      request_body: {\n        store_id: '1',\n        session_id: 'test_' + tc.id + '_' + Date.now(),\n        channel: 'web_widget',\n        message: tc.message\n      }\n    }\n  };\n});",
+        "mode": "runOnceForAllItems"
+      },
+      "id": "b2c3d4e5-0001-4000-8000-000000000002",
+      "name": "Generate Test Cases",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        490,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://localhost:5678/webhook/csbot/message",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "content-type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "string",
+        "body": "={{ JSON.stringify($json.request_body) }}",
+        "options": {
+          "timeout": 15000
+        }
+      },
+      "id": "b2c3d4e5-0001-4000-8000-000000000003",
+      "name": "Call CSBot Webhook",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        730,
+        300
+      ],
+      "onError": "continueRegularOutput",
+      "notes": "메인 워크플로우의 Webhook을 호출합니다.\nURL을 실제 n8n 환경에 맞게 수정하세요."
+    },
+    {
+      "parameters": {
+        "jsCode": "const test = $('Generate Test Cases').item;\nconst response = $input.item.json;\n\nvar botResponse = '';\nvar passed = false;\nvar details = '';\n\ntry {\n  // n8n HTTP Request v4.2는 JSON 응답을 직접 $json으로 반환\n  botResponse = response.response || JSON.stringify(response);\n\n  // 키워드 매칭 검증\n  var keywords = test.json.expect_keywords || [];\n  var matchedKeywords = [];\n  var missedKeywords = [];\n\n  keywords.forEach(function(kw) {\n    if (botResponse.includes(kw)) {\n      matchedKeywords.push(kw);\n    } else {\n      missedKeywords.push(kw);\n    }\n  });\n\n  // 최소 1개 키워드 매칭 시 PASS\n  passed = matchedKeywords.length > 0;\n  details = 'Matched: [' + matchedKeywords.join(', ') + ']';\n  if (missedKeywords.length > 0) {\n    details += ' | Missed: [' + missedKeywords.join(', ') + ']';\n  }\n} catch(e) {\n  botResponse = 'ERROR: ' + e.message;\n  details = 'Response parse failed';\n}\n\nvar status = passed ? 'PASS' : 'FAIL';\nvar emoji = passed ? '✅' : '❌';\n\nreturn [{\n  json: {\n    result: emoji + ' [' + test.json.test_id + '] ' + test.json.test_category + ': ' + status,\n    test_id: test.json.test_id,\n    category: test.json.test_category,\n    input_message: test.json.request_body.message,\n    bot_response: botResponse,\n    passed: passed,\n    details: details,\n    index: test.json.test_index + '/' + test.json.test_total\n  }\n}];",
+        "mode": "runOnceForEachItem"
+      },
+      "id": "b2c3d4e5-0001-4000-8000-000000000004",
+      "name": "Evaluate Result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        970,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const results = $input.all();\n\nvar passCount = 0;\nvar failCount = 0;\nvar lines = ['===== CS봇 FAQ 테스트 결과 =====', ''];\n\nresults.forEach(function(r) {\n  lines.push(r.json.result);\n  if (r.json.passed) passCount++;\n  else failCount++;\n});\n\nvar total = passCount + failCount;\nvar rate = total > 0 ? Math.round((passCount / total) * 100) : 0;\n\nlines.push('');\nlines.push('─────────────────────────────');\nlines.push('Total: ' + total + ' | Pass: ' + passCount + ' | Fail: ' + failCount);\nlines.push('Pass Rate: ' + rate + '% (목표: 90%)');\nlines.push(rate >= 90 ? '🎉 목표 달성!' : '⚠️ 목표 미달 — FAQ 데이터 또는 프롬프트 점검 필요');\nlines.push('─────────────────────────────');\n\nreturn [{\n  json: {\n    summary: lines.join('\\n'),\n    pass_count: passCount,\n    fail_count: failCount,\n    total: total,\n    pass_rate: rate\n  }\n}];",
+        "mode": "runOnceForAllItems"
+      },
+      "id": "b2c3d4e5-0001-4000-8000-000000000005",
+      "name": "Summary",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1210,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## CS봇 테스트 트리거\n\n### 사용법\n1. **메인 워크플로우를 먼저 활성화**하세요\n2. 이 워크플로우에서 [Execute Workflow] 클릭\n3. Summary 노드에서 결과 확인\n\n### 테스트 항목 (11건)\n- S01~S10: PRD 10개 FAQ 시나리오\n- F01: 폴백 테스트\n\n### 검증 방식\n각 시나리오별 기대 키워드가\n응답에 포함되어 있는지 확인\n(1개 이상 매칭 시 PASS)",
+        "width": 360,
+        "height": 330
+      },
+      "id": "b2c3d4e5-0001-4000-8000-000000000099",
+      "name": "Test Info",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -150,
+        120
+      ]
+    }
+  ],
+  "connections": {
+    "Run Tests": {
+      "main": [
+        [
+          {
+            "node": "Generate Test Cases",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Test Cases": {
+      "main": [
+        [
+          {
+            "node": "Call CSBot Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call CSBot Webhook": {
+      "main": [
+        [
+          {
+            "node": "Evaluate Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Evaluate Result": {
+      "main": [
+        [
+          {
+            "node": "Summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": []
+}

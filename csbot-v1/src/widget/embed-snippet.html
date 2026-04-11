@@ -1,0 +1,174 @@
+<!--
+  ArumDri CS봇 — 스마트스토어 임베드 스니펫 v1.0
+  ════════════════════════════════════════════════
+  사용 방법:
+    1. 아래 설정값 4개를 실제 값으로 교체하세요.
+    2. 스마트스토어 관리자 > 스토어 관리 > 채팅상담 > 하단 스크립트
+       (또는 직접 HTML 편집 가능한 곳의 </body> 바로 위)에 붙여넣으세요.
+    3. 저장 후 스토어 페이지를 새로고침하면 우하단에 채팅 버튼이 나타납니다.
+
+  설정값:
+    data-webhook-url    : n8n 웹훅 주소 (web-widget 워크플로우 URL)
+    data-store-id       : Airtable Stores 테이블의 StoreID 값
+    data-store-name     : 채팅창 헤더에 표시할 스토어 상호명
+    data-welcome-message: 위젯을 처음 열 때 봇이 보내는 인사말
+-->
+
+<!-- ① 설정값 (이 부분만 수정하세요) -->
+<div id="csbot-host"
+  data-webhook-url="https://YOUR_N8N_HOST/webhook/widget"
+  data-store-id="1"
+  data-store-name="내 스토어 이름"
+  data-welcome-message="안녕하세요! 😊 무엇이든 편하게 문의해 주세요."
+></div>
+
+<!-- ② Noto Sans KR 폰트 -->
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+
+<!-- ③ 위젯 스타일 -->
+<style>
+#csbot-widget{position:fixed;bottom:24px;right:24px;z-index:9999;font-family:'Noto Sans KR',-apple-system,'Apple SD Gothic Neo',sans-serif}
+#csbot-toggle-btn{position:relative;width:58px;height:58px;border-radius:50%;background:#2D5016;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 18px rgba(45,80,22,.4);transition:background .25s,transform .2s;outline:none}
+#csbot-toggle-btn:hover{background:#3a6820;transform:scale(1.06)}
+#csbot-toggle-btn svg{width:28px;height:28px;fill:white}
+#csbot-toggle-btn .icon-close{display:none}
+#csbot-toggle-btn.open .icon-chat{display:none}
+#csbot-toggle-btn.open .icon-close{display:block}
+#csbot-badge{position:absolute;top:-4px;right:-4px;width:20px;height:20px;background:#E8781A;color:white;font-size:.7rem;font-weight:700;border-radius:50%;border:2px solid white;display:none;align-items:center;justify-content:center}
+#csbot-badge.show{display:flex}
+#csbot-window{position:absolute;bottom:70px;right:0;width:360px;height:530px;background:white;border-radius:18px;box-shadow:0 8px 40px rgba(0,0,0,.18);display:flex;flex-direction:column;overflow:hidden;transform-origin:bottom right;transform:scale(.85) translateY(12px);opacity:0;pointer-events:none;transition:transform .28s cubic-bezier(.34,1.56,.64,1),opacity .22s ease}
+#csbot-window.open{transform:scale(1) translateY(0);opacity:1;pointer-events:all}
+#csbot-header{background:#2D5016;padding:16px 20px;display:flex;align-items:center;gap:12px;flex-shrink:0}
+.csbot-avatar{width:38px;height:38px;border-radius:50%;background:rgba(255,255,255,.18);display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.csbot-avatar svg{width:20px;height:20px;fill:white}
+.csbot-header-text h3{color:white;font-size:.95rem;font-weight:700}
+.csbot-header-text p{color:rgba(255,255,255,.72);font-size:.73rem;margin-top:2px;display:flex;align-items:center;gap:4px}
+.csbot-dot{width:7px;height:7px;background:#7ED321;border-radius:50%;animation:csbotBlink 2.2s infinite}
+@keyframes csbotBlink{0%,100%{opacity:1}50%{opacity:.35}}
+#csbot-messages{flex:1;overflow-y:auto;padding:16px 14px;display:flex;flex-direction:column;gap:10px;background:#f9faf7;scroll-behavior:smooth}
+#csbot-messages::-webkit-scrollbar{width:4px}
+#csbot-messages::-webkit-scrollbar-thumb{background:#d4d4d4;border-radius:4px}
+.csbot-msg{display:flex;flex-direction:column;max-width:82%}
+.csbot-msg.bot{align-self:flex-start}
+.csbot-msg.user{align-self:flex-end}
+.csbot-bubble{padding:10px 14px;font-size:.875rem;line-height:1.65;word-break:keep-all;white-space:pre-wrap}
+.csbot-msg.bot .csbot-bubble{background:#E8F5E0;color:#1a1a1a;border-radius:14px 14px 14px 3px}
+.csbot-msg.user .csbot-bubble{background:#EDEDEC;color:#1a1a1a;border-radius:14px 14px 3px 14px}
+.csbot-time{font-size:.68rem;color:#b0b0b0;margin-top:4px}
+.csbot-msg.bot .csbot-time{margin-left:3px}
+.csbot-msg.user .csbot-time{text-align:right;margin-right:3px}
+#csbot-typing{align-self:flex-start;display:none}
+#csbot-typing.show{display:block}
+.csbot-typing-wrap{background:#E8F5E0;border-radius:14px 14px 14px 3px;padding:11px 16px;display:flex;gap:5px;align-items:center}
+.csbot-typing-dot{width:7px;height:7px;background:#2D5016;border-radius:50%;opacity:.35;animation:csbotType 1.5s infinite}
+.csbot-typing-dot:nth-child(2){animation-delay:.18s}
+.csbot-typing-dot:nth-child(3){animation-delay:.36s}
+@keyframes csbotType{0%,60%,100%{opacity:.35;transform:translateY(0)}30%{opacity:1;transform:translateY(-5px)}}
+#csbot-input-area{padding:10px 12px;border-top:1px solid #ececec;display:flex;align-items:flex-end;gap:8px;background:white;flex-shrink:0}
+#csbot-input{flex:1;border:1.5px solid #e0e0e0;border-radius:22px;padding:10px 16px;font-size:.875rem;font-family:inherit;outline:none;resize:none;line-height:1.5;max-height:100px;overflow-y:auto;transition:border-color .2s}
+#csbot-input:focus{border-color:#2D5016}
+#csbot-input::placeholder{color:#bbb}
+#csbot-input:disabled{background:#f8f8f8}
+#csbot-send-btn{width:42px;height:42px;border-radius:50%;background:#E8781A;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:background .2s,transform .12s;outline:none}
+#csbot-send-btn:hover{background:#d06b14}
+#csbot-send-btn:active{transform:scale(.92)}
+#csbot-send-btn:disabled{background:#ddd;cursor:not-allowed;transform:none}
+#csbot-send-btn svg{width:18px;height:18px;fill:white}
+@media(max-width:480px){
+  #csbot-widget{bottom:0;right:0;left:0}
+  #csbot-toggle-btn{position:fixed;bottom:20px;right:20px}
+  #csbot-window{position:fixed;bottom:0;right:0;left:0;width:100%;height:100dvh;border-radius:0;transform:translateY(100%);opacity:1}
+  #csbot-window.open{transform:translateY(0)}
+}
+</style>
+
+<!-- ④ 위젯 HTML -->
+<div id="csbot-widget">
+  <div id="csbot-badge" aria-hidden="true">1</div>
+  <button id="csbot-toggle-btn" aria-label="고객센터 채팅 열기/닫기" aria-expanded="false">
+    <svg class="icon-chat" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H6l-2 2V4h16v12z"/></svg>
+    <svg class="icon-close" viewBox="0 0 24 24" aria-hidden="true"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+  </button>
+  <div id="csbot-window" role="dialog" aria-label="고객센터 채팅창" aria-hidden="true">
+    <div id="csbot-header">
+      <div class="csbot-avatar" aria-hidden="true">
+        <svg viewBox="0 0 24 24"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-2 12H6v-2h12v2zm0-3H6V9h12v2zm0-3H6V6h12v2z"/></svg>
+      </div>
+      <div class="csbot-header-text">
+        <h3 id="csbot-store-name">고객센터</h3>
+        <p><span class="csbot-dot"></span>온라인 · 빠른 답변</p>
+      </div>
+    </div>
+    <div id="csbot-messages" role="log" aria-live="polite">
+      <div id="csbot-typing" aria-label="봇이 입력 중" aria-hidden="true">
+        <div class="csbot-typing-wrap">
+          <span class="csbot-typing-dot"></span>
+          <span class="csbot-typing-dot"></span>
+          <span class="csbot-typing-dot"></span>
+        </div>
+      </div>
+    </div>
+    <div id="csbot-input-area">
+      <textarea id="csbot-input" placeholder="문의 내용을 입력하세요..." rows="1" autocomplete="off" spellcheck="false" aria-label="메시지 입력창"></textarea>
+      <button id="csbot-send-btn" aria-label="전송"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg></button>
+    </div>
+  </div>
+</div>
+
+<!-- ⑤ 위젯 스크립트 -->
+<script>
+(function(){
+  'use strict';
+  var h=document.getElementById('csbot-host');
+  var CONFIG={
+    WEBHOOK_URL:    (h&&h.dataset.webhookUrl)    ||'https://YOUR_N8N_HOST/webhook/widget',
+    STORE_ID:       (h&&h.dataset.storeId)       ||'1',
+    STORE_NAME:     (h&&h.dataset.storeName)     ||'고객센터',
+    WELCOME_MESSAGE:(h&&h.dataset.welcomeMessage)||'안녕하세요! 무엇이든 편하게 문의해 주세요.'
+  };
+  var isOpen=false,isLoading=false,hasWelcome=false;
+  var sid=localStorage.getItem('csbot_session_id');
+  if(!sid){sid='widget_'+Math.random().toString(36).slice(2,9)+'_'+Date.now();localStorage.setItem('csbot_session_id',sid);}
+  var $w=document.getElementById('csbot-window'),$b=document.getElementById('csbot-toggle-btn'),
+      $m=document.getElementById('csbot-messages'),$t=document.getElementById('csbot-typing'),
+      $i=document.getElementById('csbot-input'),$s=document.getElementById('csbot-send-btn'),
+      $g=document.getElementById('csbot-badge'),$n=document.getElementById('csbot-store-name');
+  $n.textContent=CONFIG.STORE_NAME+' 고객센터';
+  function ts(){return new Date().toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'});}
+  function addMsg(txt,role){
+    var el=document.createElement('div');el.className='csbot-msg '+role;
+    var bb=document.createElement('div');bb.className='csbot-bubble';bb.textContent=txt;
+    var tm=document.createElement('div');tm.className='csbot-time';tm.textContent=ts();
+    el.appendChild(bb);el.appendChild(tm);$m.insertBefore(el,$t);$m.scrollTop=$m.scrollHeight;
+  }
+  function setLoad(v){
+    isLoading=v;$s.disabled=v;$i.disabled=v;
+    v?$t.classList.add('show'):$t.classList.remove('show');
+    if(v)$m.scrollTop=$m.scrollHeight;
+  }
+  function resize(){$i.style.height='auto';$i.style.height=Math.min($i.scrollHeight,100)+'px';}
+  async function send(){
+    var txt=$i.value.trim();if(!txt||isLoading)return;
+    $i.value='';resize();addMsg(txt,'user');setLoad(true);
+    try{
+      var r=await fetch(CONFIG.WEBHOOK_URL,{method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({message:txt,session_id:sid,store_id:CONFIG.STORE_ID,channel:'web_widget'})});
+      if(!r.ok)throw new Error('HTTP '+r.status);
+      var d=await r.json();
+      setLoad(false);addMsg(d.message||d.response||'응답을 받지 못했습니다.','bot');
+    }catch(e){setLoad(false);addMsg('잠시 후 다시 시도해 주세요.','bot');if(e instanceof TypeError&&e.message.includes('fetch'))console.error('[CSBot] CORS 오류 가능성. n8n N8N_CORS_ORIGIN 설정 확인',e);else console.warn('[CSBot]',e);}
+  }
+  $b.addEventListener('click',function(){
+    isOpen=!isOpen;$w.classList.toggle('open',isOpen);$b.classList.toggle('open',isOpen);
+    $b.setAttribute('aria-expanded',isOpen);$w.setAttribute('aria-hidden',!isOpen);
+    if(isOpen){
+      $g.classList.remove('show');
+      if(!hasWelcome){hasWelcome=true;setTimeout(function(){addMsg(CONFIG.WELCOME_MESSAGE,'bot');},380);}
+      setTimeout(function(){$i.focus();},300);
+    }
+  });
+  $s.addEventListener('click',send);
+  $i.addEventListener('keydown',function(e){if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();send();}});
+  $i.addEventListener('input',resize);
+}());
+</script>

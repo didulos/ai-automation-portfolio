@@ -1,0 +1,337 @@
+{
+  "name": "Kakao Channel Chatbot",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "kakao",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "kakao-0001-4000-8000-000000000001",
+      "name": "Receive Kakao Request",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        250,
+        300
+      ],
+      "webhookId": "kakao-skill-webhook"
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.item.json.body;\n\nconst utterance = body.userRequest && body.userRequest.utterance\n  ? body.userRequest.utterance.trim()\n  : '';\n\nconst userId = body.userRequest && body.userRequest.user && body.userRequest.user.id\n  ? body.userRequest.user.id\n  : 'unknown';\n\nconst callbackUrl = body.userRequest && body.userRequest.callbackUrl\n  ? body.userRequest.callbackUrl\n  : '';\n\nreturn {\n  store_id: '1',\n  session_id: 'kakao_' + userId,\n  channel: 'kakao',\n  message: utterance,\n  callbackUrl: callbackUrl\n};",
+        "mode": "runOnceForEachItem"
+      },
+      "id": "kakao-0001-4000-8000-000000000002",
+      "name": "Extract Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        490,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "kakao-cond-0001-4000-8000-000000000001",
+              "leftValue": "={{ $json.callbackUrl }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "kakao-0001-4000-8000-000000000003",
+      "name": "Has Callback URL?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        720,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ {useCallback: true} }}",
+        "options": {}
+      },
+      "id": "kakao-0001-4000-8000-000000000004",
+      "name": "Send Callback Ack",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        960,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://localhost:5678/webhook/csbot/message",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({store_id: $('Extract Data').first().json.store_id, session_id: $('Extract Data').first().json.session_id, channel: $('Extract Data').first().json.channel, message: $('Extract Data').first().json.message}) }}",
+        "options": {
+          "timeout": 50000
+        }
+      },
+      "id": "kakao-0001-4000-8000-000000000005",
+      "name": "Call CSBot (Callback)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1200,
+        200
+      ],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const input = $input.item.json;\nconst callbackUrl = $('Extract Data').first().json.callbackUrl;\n\nvar botResponse;\nif (input.error || !input.response) {\n  botResponse = '죄송합니다. 일시적인 오류가 발생했습니다. 잠시 후 다시 문의해 주세요.';\n} else {\n  botResponse = input.response;\n}\n\nreturn {\n  callbackUrl: callbackUrl,\n  payload: {\n    version: '2.0',\n    template: {\n      outputs: [{ simpleText: { text: botResponse } }]\n    }\n  }\n};",
+        "mode": "runOnceForEachItem"
+      },
+      "id": "kakao-0001-4000-8000-000000000006",
+      "name": "Format Callback Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1440,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $json.callbackUrl }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.payload) }}",
+        "options": {
+          "timeout": 10000
+        }
+      },
+      "id": "kakao-0001-4000-8000-000000000007",
+      "name": "Send to Callback URL",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1680,
+        200
+      ],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://localhost:5678/webhook/csbot/message",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({store_id: $('Extract Data').first().json.store_id, session_id: $('Extract Data').first().json.session_id, channel: $('Extract Data').first().json.channel, message: $('Extract Data').first().json.message}) }}",
+        "options": {
+          "timeout": 50000
+        }
+      },
+      "id": "kakao-0001-4000-8000-000000000008",
+      "name": "Call CSBot (Direct)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        960,
+        440
+      ],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const input = $input.item.json;\n\nvar botResponse;\nif (input.error || !input.response) {\n  botResponse = '죄송합니다. 일시적인 오류가 발생했습니다. 잠시 후 다시 문의해 주세요.';\n} else {\n  botResponse = input.response;\n}\n\nreturn {\n  version: '2.0',\n  template: {\n    outputs: [{ simpleText: { text: botResponse } }]\n  }\n};",
+        "mode": "runOnceForEachItem"
+      },
+      "id": "kakao-0001-4000-8000-000000000009",
+      "name": "Format Direct Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1200,
+        440
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {}
+      },
+      "id": "kakao-0001-4000-8000-000000000010",
+      "name": "Send Direct Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1440,
+        440
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## 카카오 채널 챗봇 (Callback + Direct 분기)\n\n### callbackUrl 있음 (실제 카카오톡)\n수신 → 추출 → IF → 즉시 useCallback 응답 → CSBot → 포맷 → callbackUrl POST\n\n### callbackUrl 없음 (봇테스트/스킬테스트/curl)\n수신 → 추출 → IF → CSBot → 포맷 → 직접 응답\n\n### Callback 제약\n- callbackUrl 유효시간: 60초\n- callbackUrl 사용횟수: 1회\n- AI 챗봇 ON이어야 callbackUrl 포함됨",
+        "width": 460,
+        "height": 300
+      },
+      "id": "kakao-0001-4000-8000-000000000099",
+      "name": "Setup Notes",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -250,
+        120
+      ]
+    }
+  ],
+  "connections": {
+    "Receive Kakao Request": {
+      "main": [
+        [
+          {
+            "node": "Extract Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Data": {
+      "main": [
+        [
+          {
+            "node": "Has Callback URL?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has Callback URL?": {
+      "main": [
+        [
+          {
+            "node": "Send Callback Ack",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Call CSBot (Direct)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Callback Ack": {
+      "main": [
+        [
+          {
+            "node": "Call CSBot (Callback)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call CSBot (Callback)": {
+      "main": [
+        [
+          {
+            "node": "Format Callback Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Callback Response": {
+      "main": [
+        [
+          {
+            "node": "Send to Callback URL",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call CSBot (Direct)": {
+      "main": [
+        [
+          {
+            "node": "Format Direct Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Direct Response": {
+      "main": [
+        [
+          {
+            "node": "Send Direct Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "tags": []
+}

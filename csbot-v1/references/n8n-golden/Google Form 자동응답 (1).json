@@ -1,0 +1,120 @@
+{
+  "name": "Google Form 자동응답",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "google-form-inquiry",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -496,
+        0
+      ],
+      "id": "c0ad0bc9-03da-44b5-9197-dae93618a91c",
+      "name": "Webhook",
+      "webhookId": "0b09e67e-7843-476f-9a98-bd391370aaaa"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "5d81131e-847c-4f9f-8903-d41f69146065",
+              "name": "=body['이름']",
+              "value": "={{ $json.body['이름'] }}",
+              "type": "string"
+            },
+            {
+              "id": "b5d1f444-4c6e-4daa-a111-2e363fbe79dc",
+              "name": "body['이메일']",
+              "value": "={{ $json.body['이메일'] }}",
+              "type": "string"
+            },
+            {
+              "id": "ff71fe10-87c9-4844-89e5-3a4b85ac840f",
+              "name": "body['문의내용']",
+              "value": "={{ $json.body['문의내용'] }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -272,
+        0
+      ],
+      "id": "9bffded6-ff97-4bdb-84b3-366688712e2e",
+      "name": "Edit Fields"
+    },
+    {
+      "parameters": {
+        "fromEmail": "didulos72@gmail.com",
+        "toEmail": "={{ $json.body['이메일'] }}",
+        "subject": "={{ $json.body['이름'] }}님, 문의접수가 완료되었습니다.",
+        "html": "={{ \n\"<div style='font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;'>\" +\n\"<h2 style='color: #2563eb;'>문의 접수 확인</h2>\" +\n\"<p>\" + $json.body['이름'] + \"님, 안녕하세요.</p>\" +\n\"<p>아래 내용으로 문의가 정상 접수되었습니다.</p>\" +\n\"<div style='background: #f1f5f9; padding: 16px; border-radius: 8px; margin: 16px 0;'>\" +\n\"<p style='margin: 0;'><strong>문의 내용:</strong></p>\" +\n\"<p style='margin: 8px 0 0 0;'>\" + $json.body['문의내용'] + \"</p>\" +\n\"</div>\" +\n\"<p>영업일 기준 1~2일 이내에 답변 드리겠습니다.</p>\" +\n\"<p>감사합니다.</p>\" +\n\"<hr style='border: none; border-top: 1px solid #e2e8f0; margin: 24px 0;'>\" +\n\"<p style='color: #94a3b8; font-size: 12px;'>ArumDri AI Automation</p>\" +\n\"</div>\"\n}}",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [
+        -64,
+        0
+      ],
+      "id": "a0eb4055-85dd-4e42-8e77-a290d8c548d0",
+      "name": "Send an Email",
+      "webhookId": "48eb5961-f7eb-49cd-b8d3-cb784b1868f7",
+      "credentials": {
+        "smtp": {
+          "id": "aZWCkRVDOpZJTXJu",
+          "name": "SMTP account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields": {
+      "main": [
+        [
+          {
+            "node": "Send an Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "29e2182a-3398-48e4-8afa-805aa1664e21",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "ee47474067e98b2c6e6dc3fa8b47a61d99afb0655ded6fd3e34fb73643976e2b"
+  },
+  "id": "C307zALsZ0eEFSLh",
+  "tags": []
+}

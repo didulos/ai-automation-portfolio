@@ -1,0 +1,218 @@
+{
+  "name": "Web Widget Handler",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## 🌐 Web Widget Handler\n\n웹 채팅 위젯 ↔ Main CSBot 연결 워크플로우\n\n---\n\n### ✅ Import 후 필수 설정\n\n**1. Main CSBot URL 변경**\n`Call CSBot` 노드 > URL을 실제 n8n 호스트로 변경\n기본값: `http://localhost:5678/webhook/csbot/message`\n\n**2. CORS / OPTIONS 프리플라이트 처리 [필수]**\n\n브라우저는 cross-origin POST 전에 OPTIONS 요청을 먼저 보냅니다.\nn8n Webhook 노드는 OPTIONS 메서드를 지원하지 않으므로,\n**반드시 아래 중 하나**로 인프라 레벨에서 처리해야 합니다.\n\n방법 A — n8n 환경변수 (.env 또는 docker-compose):\n```\nN8N_CORS_ORIGIN=https://smartstore.naver.com\n# 개발/테스트: N8N_CORS_ORIGIN=*\n```\nn8n을 재시작하면 OPTIONS 요청에 자동 응답합니다.\n\n방법 B — Nginx 리버스 프록시:\n```nginx\nadd_header Access-Control-Allow-Origin *;\nadd_header Access-Control-Allow-Methods 'POST, OPTIONS';\nadd_header Access-Control-Allow-Headers 'Content-Type';\nif ($request_method = OPTIONS) { return 204; }\n```\n\n※ POST 응답의 CORS 헤더는 이 워크플로우의\n  `Send Widget Response` 노드에 이미 설정되어 있습니다.\n\n---\n\n### 테스트 (curl)\n```bash\ncurl -X POST https://YOUR_N8N/webhook/widget \\\n  -H 'Content-Type: application/json' \\\n  -d '{\"message\":\"배송 언제 와요?\",\n       \"session_id\":\"test_001\",\n       \"store_id\":\"1\",\n       \"channel\":\"web_widget\"}'\n```",
+        "height": 520,
+        "width": 400,
+        "color": 4
+      },
+      "id": "ww000001-0000-4000-8000-000000000001",
+      "name": "Setup Notes",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -240,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "widget",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "ww000001-0000-4000-8000-000000000002",
+      "name": "Receive Widget Request",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        200,
+        300
+      ],
+      "webhookId": "web-widget-webhook"
+    },
+    {
+      "parameters": {
+        "jsCode": "// 위젯 요청에서 필드 추출 및 검증\nconst body = $input.item.json.body || $input.item.json;\n\nconst message    = (body.message    || '').trim();\nconst session_id = (body.session_id || '').trim();\nconst store_id   = (body.store_id   || '1').toString().trim();\nconst channel    = 'web_widget';\n\n// 필수 필드 검증\nif (!message) {\n  throw new Error('message 필드가 비어 있습니다.');\n}\nif (!session_id) {\n  throw new Error('session_id 필드가 비어 있습니다.');\n}\n\nreturn {\n  message,\n  session_id,\n  store_id,\n  channel,\n  received_at: new Date().toISOString()\n};"
+      },
+      "id": "ww000001-0000-4000-8000-000000000003",
+      "name": "Validate & Extract",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        440,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://localhost:5678/webhook/csbot/message",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"store_id\":   \"{{ $json.store_id }}\",\n  \"session_id\": \"{{ $json.session_id }}\",\n  \"channel\":    \"{{ $json.channel }}\",\n  \"message\":    \"{{ $json.message }}\"\n}",
+        "options": {
+          "timeout": 30000,
+          "response": {
+            "response": {
+              "fullResponse": false
+            }
+          }
+        }
+      },
+      "id": "ww000001-0000-4000-8000-000000000004",
+      "name": "Call CSBot",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        680,
+        300
+      ],
+      "notes": "⚠️ URL을 실제 n8n 호스트로 변경하세요.\n예: https://your-n8n.example.com/webhook/csbot/message",
+      "notesInFlow": false,
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Main CSBot 응답 → 위젯 응답 포맷으로 변환\nconst csbot = $input.item.json;\n\n// Main CSBot은 { response: \"...\" } 또는 { message: \"...\" } 형태로 반환\nconst botText = csbot.response || csbot.message || '잠시 후 다시 시도해 주세요.';\n\nreturn {\n  message:    botText,\n  session_id: $('Validate & Extract').first().json.session_id,\n  timestamp:  new Date().toISOString()\n};"
+      },
+      "id": "ww000001-0000-4000-8000-000000000005",
+      "name": "Format Widget Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        920,
+        220
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// CSBot 호출 실패 시 폴백 응답\nreturn {\n  message:    '일시적인 오류가 발생했습니다. 잠시 후 다시 문의해 주세요.',\n  session_id: $('Validate & Extract').first().json.session_id,\n  timestamp:  new Date().toISOString(),\n  error:      true\n};"
+      },
+      "id": "ww000001-0000-4000-8000-000000000006",
+      "name": "Format Error Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        920,
+        420
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              },
+              {
+                "name": "Access-Control-Allow-Methods",
+                "value": "POST, OPTIONS"
+              },
+              {
+                "name": "Access-Control-Allow-Headers",
+                "value": "Content-Type"
+              }
+            ]
+          }
+        }
+      },
+      "id": "ww000001-0000-4000-8000-000000000007",
+      "name": "Send Widget Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1160,
+        300
+      ]
+    }
+  ],
+  "connections": {
+    "Receive Widget Request": {
+      "main": [
+        [
+          {
+            "node": "Validate & Extract",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate & Extract": {
+      "main": [
+        [
+          {
+            "node": "Call CSBot",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call CSBot": {
+      "main": [
+        [
+          {
+            "node": "Format Widget Response",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Format Error Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Widget Response": {
+      "main": [
+        [
+          {
+            "node": "Send Widget Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Error Response": {
+      "main": [
+        [
+          {
+            "node": "Send Widget Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "meta": {
+    "instanceId": "web-widget-handler-v1"
+  }
+}
