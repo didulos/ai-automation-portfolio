@@ -96,8 +96,8 @@ n8n 핵심 패턴을 실습한 워크플로우 모음입니다.
 
 ## 실행 환경
 
-- CPU: Xeon E5-1660 v4 / RAM: 32GB / GPU: GTX 970
-- OS: Windows 10 Pro + WSL2 Ubuntu
+- CPU: Intel 13600K / RAM: 64GB / GPU: RTX 3090
+- OS: Windows 11 Pro + WSL2 Ubuntu
 - Docker, n8n, Qdrant 로컬 운영
 
 ---
